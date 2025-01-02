@@ -1,0 +1,202 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//Business Logic Integration:
+//Tour guide availability tracking
+//Schedule management
+//Booking system
+//Review system
+//Rating calculation
+//Capacity management
+//Payment tracking
+//Multi-language support
+
+// Tour Category Model
+model TourCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  image       String?
+  slug        String   @unique
+  isActive    Boolean  @default(true)
+  tours       Tour[]   // Relation to tours
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("tour_categories")
+}
+
+// Tour Location/Destination Model
+model Destination {
+  id          String   @id @default(uuid())
+  name        String
+  country     String
+  state       String?
+  city        String
+  description String?
+  images      String[]
+  latitude    Float?
+  longitude   Float?
+  isActive    Boolean  @default(true)
+  tours       Tour[]   // Tours at this destination
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("destinations")
+}
+
+// Tour Guide Model
+model TourGuide {
+  id            String         @id @default(uuid())
+  firstName     String
+  lastName      String
+  email         String         @unique
+  phone         String
+  language      String[]       // Languages spoken
+  expertise     String[]       // Areas of expertise
+  rating        Float?         @default(0)
+  isAvailable   Boolean        @default(true)
+  profileImage  String?
+  bio           String?
+  documents     String[]       // Array of document URLs (certifications, licenses)
+  tours         Tour[]         // Tours assigned to guide
+  tourSchedules TourSchedule[] // Guide's schedule
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("tour_guides")
+}
+
+// Main Tour Model
+model Tour {
+  id               String         @id @default(uuid())
+  title           String
+  slug            String         @unique
+  description     String
+  highlights      String[]
+  duration        Int            // Duration in days
+  maxGroupSize    Int
+  minAge          Int            @default(0)
+  difficulty      TourDifficulty @default(EASY)
+  startLocation   Destination    @relation(fields: [destinationId], references: [id])
+  destinationId   String
+  category        TourCategory   @relation(fields: [categoryId], references: [id])
+  categoryId      String
+  basePrice       Float
+  images          String[]
+  itinerary       Json          // Detailed day-by-day itinerary
+  included        String[]      // What's included
+  excluded        String[]      // What's excluded
+  notes           String?
+  cancellationPolicy String
+  isActive        Boolean       @default(true)
+  rating          Float?        @default(0)
+  reviewCount     Int          @default(0)
+  tourGuides      TourGuide[]
+  schedules       TourSchedule[]
+  reviews         TourReview[]
+  bookings        TourBooking[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("tours")
+}
+
+// Tour Schedule Model
+model TourSchedule {
+  id            String      @id @default(uuid())
+  tour          Tour        @relation(fields: [tourId], references: [id])
+  tourId        String
+  startDate     DateTime
+  endDate       DateTime
+  price         Float       // Price for this specific schedule
+  availableSeats Int
+  guides        TourGuide[]
+  status        ScheduleStatus @default(UPCOMING)
+  bookings      TourBooking[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@map("tour_schedules")
+}
+
+// Tour Booking Model
+model TourBooking {
+  id             String        @id @default(uuid())
+  bookingRef     String        @unique // Unique booking reference
+  tour           Tour          @relation(fields: [tourId], references: [id])
+  tourId         String
+  schedule       TourSchedule  @relation(fields: [scheduleId], references: [id])
+  scheduleId     String
+  totalAmount    Float
+  status         BookingStatus @default(PENDING)
+  participants   Json[]        // Array of participant details
+  specialRequests String?
+  contactInfo    Json         // Contact information
+  paymentStatus  PaymentStatus @default(PENDING)
+  paymentDetails Json?        // Payment transaction details
+  review         TourReview?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("tour_bookings")
+}
+
+// Tour Review Model
+model TourReview {
+  id          String      @id @default(uuid())
+  tour        Tour        @relation(fields: [tourId], references: [id])
+  tourId      String
+  booking     TourBooking @relation(fields: [bookingId], references: [id])
+  bookingId   String      @unique
+  rating      Float
+  review      String?
+  images      String[]
+  isVerified  Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("tour_reviews")
+}
+
+// Enums
+enum TourDifficulty {
+  EASY
+  MODERATE
+  CHALLENGING
+  DIFFICULT
+}
+
+enum ScheduleStatus {
+  UPCOMING
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
